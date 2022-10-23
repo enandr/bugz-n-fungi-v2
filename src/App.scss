@@ -1,0 +1,50 @@
+:root {
+  --tile-size: 50px;
+}
+
+.App {
+  display: grid;
+  place-content: center;
+  height: 100vh;
+}
+.grid {
+  display: grid;
+  grid-template-rows: var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size);
+  border: 1px solid black;
+  gap: 0;
+}
+.row {
+  display: grid;
+  grid-template-columns: var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size);
+  gap: 0;
+  height: 100%;
+}
+.tile {
+  border: solid 1px black;
+  &:not(.playableTile) {
+    cursor: not-allowed;
+  }
+  &:hover.playableTile {
+    background: green;
+  }
+}
+.bug {
+  &.player1 {
+    background: orange !important;
+  }
+  &.player2 {
+    background: blue !important;
+  }
+}
+.fungi {
+  &.player1 {
+    background: darkred !important;
+  }
+  &.player2 {
+    background: darkblue !important;
+  }
+}
+.playableTile {
+  background: lightgreen;
+  cursor: pointer;
+}
