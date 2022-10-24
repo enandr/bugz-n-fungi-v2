@@ -1,11 +1,16 @@
 :root {
   --tile-size: 50px;
+  --border-color: black;
 }
 
 .App {
   display: grid;
   place-content: center;
   height: 100vh;
+  &.dark {
+    background: black;
+    --border-color: white;
+  }
 }
 .grid {
   display: grid;
@@ -20,7 +25,9 @@
   height: 100%;
 }
 .tile {
-  border: solid 1px black;
+  border: solid 1px var(--border-color);
+  user-select: none;
+  color: red;
   &:not(.playableTile) {
     cursor: not-allowed;
   }
@@ -47,4 +54,16 @@
 .playableTile {
   background: lightgreen;
   cursor: pointer;
+}
+.headers {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  h3 {
+    margin-bottom: 1px;
+    color: var(--border-color);
+  }
+}
+button {
+  margin: 5px 0;
 }
