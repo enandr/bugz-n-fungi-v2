@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import Modal from 'react-modal';
 import './App.scss';
 
 type TileType = {
@@ -25,6 +26,12 @@ function App() {
   const [mode, setMode] = useState(sessionStorage.mode || 'light')
 
   const [debugMode, setDebugMode] = useState(sessionStorage.debugMode === 'true')
+
+  const [modalIsOpen, setIsOpen] = useState(false);
+
+  function closeModal() {
+    setIsOpen(false)
+  }
 
   function GameTile(props: {tile: TileType}) {
     const {tile} = props;
@@ -62,7 +69,9 @@ function App() {
       setTurnCount(turnCount+1)
       findPlayableTiles()
     }
-    }>{debugMode && `${tile.row}:${tile.column}`}</div>
+    }>{tile.type === 'bug' ? 'B' : tile.type === 'fungi' ? 'F':''}
+      {debugMode && <span className={'debugTileText'}>{`${tile.row}:${tile.column}`}</span>}
+    </div>
   }
 
   function TileGrid() {
@@ -198,7 +207,7 @@ function App() {
     if (!tilesState.length) return;
     resetPlayableTiles()
     const newState = [...tilesState]
-
+    let canPlay = false;
     runCheckFungiLoop(newState);
 
     newState.map((row,rowIndex:number) => {
@@ -209,6 +218,7 @@ function App() {
               tile.surroundingTiles.map((surroundingTile:TileType) => {
                 if (surroundingTile.type === 'none' || (surroundingTile.type === 'bug' && surroundingTile.owner !== playerTurn)) {
                   surroundingTile.isPlayable = true;
+                  canPlay = true
                 }
               })
             }
@@ -216,6 +226,7 @@ function App() {
             tile.surroundingTiles.map((surroundingTile:TileType) => {
               if (surroundingTile.type === 'none' || (surroundingTile.type === 'bug' && surroundingTile.owner !== playerTurn)) {
                 surroundingTile.isPlayable = true;
+                canPlay = true
               }
             })
           }
@@ -223,6 +234,9 @@ function App() {
       })
     })
     setTilesState(newState)
+    if (!canPlay) {
+      alert(`Player ${playerTurn === 1 ? 2 : 1} has won!!!`)
+    }
   }
 
   function checkWinCondition() {
@@ -281,6 +295,22 @@ function App() {
       <button onClick={() => {
         setDebugMode(!debugMode)
       }}>Debug Mode {debugMode ? 'ON' : 'OFF'}</button>
+      <Modal
+          isOpen={modalIsOpen}
+          onRequestClose={closeModal}
+          contentLabel="Example Modal"
+      >
+        <h2>Hello</h2>
+        <button onClick={closeModal}>close</button>
+        <div>I am a modal</div>
+        <form>
+          <input />
+          <button>tab navigation</button>
+          <button>stays</button>
+          <button>inside</button>
+          <button>the modal</button>
+        </form>
+      </Modal>
     </div>
   );
 }

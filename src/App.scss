@@ -27,12 +27,26 @@
 .tile {
   border: solid 1px var(--border-color);
   user-select: none;
-  color: red;
+  display: grid;
+  place-content: center;
+  font-weight: bold;
+  font-size: 25px;
+  position: relative;
+  &.bug,&.fungi {
+    &.player1 {
+      color: black;
+    }
+    &.player2 {
+      color: white;
+    }
+  }
   &:not(.playableTile) {
     cursor: not-allowed;
   }
   &:hover.playableTile {
-    background: green;
+    //background: green !important;
+    box-shadow: 0 0 20px darkgreen;
+    z-index: 100;
   }
 }
 .bug {
@@ -45,7 +59,7 @@
 }
 .fungi {
   &.player1 {
-    background: darkred !important;
+    background: #f16a15 !important;
   }
   &.player2 {
     background: darkblue !important;
@@ -66,4 +80,11 @@
 }
 button {
   margin: 5px 0;
+}
+.debugTileText {
+  color: red;
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 1rem;
 }
