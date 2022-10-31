@@ -2,6 +2,9 @@
   --tile-size: 50px;
   --border-color: black;
 }
+html {
+  cursor: url("./svgs/cursor-blue.png") , auto;
+}
 
 .App {
   display: grid;
@@ -14,7 +17,7 @@
 }
 .grid {
   display: grid;
-  grid-template-rows: var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size);
+  grid-template-rows: 0 var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size) var(--tile-size);
   border: 1px solid black;
   gap: 0;
 }
@@ -41,7 +44,7 @@
     }
   }
   &:not(.playableTile) {
-    cursor: not-allowed;
+    cursor: url("./svgs/cursor-blue-error.png") , auto;
   }
   &:hover.playableTile {
     //background: green !important;
@@ -67,7 +70,7 @@
 }
 .playableTile {
   background: lightgreen;
-  cursor: pointer;
+  cursor: url("./svgs/cursor-blue-success.png") , auto;
 }
 .headers {
   display: flex;

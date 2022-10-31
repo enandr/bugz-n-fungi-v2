@@ -1,6 +1,11 @@
-import React, {useEffect, useState} from 'react';
+import React, {useContext, useEffect, useRef, useState} from 'react';
 import Modal from 'react-modal';
 import './App.scss';
+import {io} from "socket.io-client"
+import {SocketContext} from "./context/socketContext";
+import useSocket from "./hooks/useSocket";
+const redCursor = require('./svgs/cursor-red.png')
+
 
 type TileType = {
   owner: 0 | 1 | 2;
@@ -13,21 +18,24 @@ type TileType = {
 }
 
 function App() {
+  const socket = useContext(SocketContext);
   const [tilesState, setTilesState] = useState<any[]>([])
-
   const [playerTurn, setPlayerTurn] = useState<0 | 1 | 2>(0)
-
+  const [playerNumber, setPlayerNumber] = useState<0 | 1 | 2>(0)
   const [turnCount, setTurnCount] = useState(0)
-
   const [player1Fungi, setPlayer1Fungi] = useState<TileType[]>([])
-
   const [player2Fungi, setPlayer2Fungi] = useState<TileType[]>([])
-
   const [mode, setMode] = useState(sessionStorage.mode || 'light')
-
+  const [gameMode, setGameMode] = useState<'none' | 'local' | 'online'>('none')
   const [debugMode, setDebugMode] = useState(sessionStorage.debugMode === 'true')
-
-  const [modalIsOpen, setIsOpen] = useState(false);
+  const [modalIsOpen, setIsOpen] = useState(true);
+  const [joinModalIsOpen, setJoinModalIsOpen] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [otherMouse, setOtherMouse] = useState<{x:string,y:string}>({x:'0px',y:'0px'})
+  const [roomName, setRoomName] = useState<string>('')
+  const tileGridRef = useRef<any>()
+  const {joinRoom,createRoomId,sendClickedTile,sendUpdates} = useSocket(socket)
 
   function closeModal() {
     setIsOpen(false)
@@ -51,23 +59,10 @@ function App() {
         return;
       }
       if (!tile.isPlayable) return;
-      const newState = [...tilesState]
-      const currentTile = newState[tile.row][tile.column]
-      currentTile.owner = playerTurn
-      currentTile.type = currentTile.type === 'none' ? 'bug' : 'fungi';
-      if (currentTile.type === 'fungi') {
-        switch (currentTile.owner){
-          case 1:
-            setPlayer1Fungi([...player1Fungi,currentTile])
-            break;
-          case 2:
-            setPlayer2Fungi([...player2Fungi,currentTile])
-            break;
-        }
-      }
-      setTilesState(newState);
+      handleClick({row:tile.row,column:tile.column})
+      turnCount + 1 < 5 && sendUpdates({turnCount: turnCount + 1})
+      sendClickedTile({row: tile.row, column: tile.column})
       setTurnCount(turnCount+1)
-      findPlayableTiles()
     }
     }>{tile.type === 'bug' ? 'B' : tile.type === 'fungi' ? 'F':''}
       {debugMode && <span className={'debugTileText'}>{`${tile.row}:${tile.column}`}</span>}
@@ -75,7 +70,17 @@ function App() {
   }
 
   function TileGrid() {
-    return <div className={'grid'}>
+    return <div ref={tileGridRef} className={'grid'} onMouseMove={event => {
+      if (!socket) return;
+      socket.emit('mouseMove', {x:event.pageX - tileGridRef.current.offsetLeft, y:event.pageY- tileGridRef.current.offsetTop})
+    }}>
+      {gameMode === 'online' ? <img src={redCursor} className={'other-mouse'} style={{
+        top: otherMouse.y,
+        left: otherMouse.x,
+        position:'relative',
+        zIndex:1000,
+      }} alt={'enemy-cursor'}/> : <div/>}
+
       {tilesState.map((row:any, index) => {
         return <div key={`ROW:${index}`} className={'row'}>
           {row.map((tile:TileType) => {
@@ -239,8 +244,25 @@ function App() {
     }
   }
 
-  function checkWinCondition() {
-
+  function handleClick(tile:{row:number;column:number}) {
+    console.log('in handle click')
+    const {row,column} = tile;
+    const newState = [...tilesState]
+    const currentTile = newState[row][column]
+    currentTile.owner = playerTurn
+    currentTile.type = currentTile.type === 'none' ? 'bug' : 'fungi';
+    if (currentTile.type === 'fungi') {
+      switch (currentTile.owner){
+        case 1:
+          setPlayer1Fungi([...player1Fungi,currentTile])
+          break;
+        case 2:
+          setPlayer2Fungi([...player2Fungi,currentTile])
+          break;
+      }
+    }
+    setTilesState(newState);
+    findPlayableTiles()
   }
 
   useEffect(() => {
@@ -263,7 +285,45 @@ function App() {
   },[])
 
   useEffect(() => {
+    if (socket && gameMode === 'online') {
+      console.log('here')
+    }
+  },[gameMode])
+
+  useEffect(() => {
+    if (!loaded) {
+      setLoaded(true)
+    }
+    console.log('updating')
+  },[tilesState])
+
+  useEffect(() => {
+    socket.on('connect',() => {
+      setConnected(true)
+      socket.on('playerSet', (data) => {
+        console.log({playerSet:data})
+        setPlayerNumber(data)
+      })
+      socket.on('mouseMove', (data) => {
+        setOtherMouse(data)
+      })
+      socket.on('clickTile', (data) => {
+        console.log({tilesState})
+        if (tilesState.length){
+          handleClick(data)
+        }
+      })
+      socket.on('updates', (data) => {
+        data.turnCount && setTurnCount(data.turnCount)
+        data.playerTurn && setPlayerTurn(data.playerTurn)
+      })
+    })
+  },[loaded])
+
+  useEffect(() => {
+    console.log(turnCount)
     if (turnCount === 5) {
+      sendUpdates({turnCount: 0, playerTurn: playerTurn === 1 ? 2 : 1})
       setTurnCount(0)
       setPlayerTurn(playerTurn === 1 ? 2 : 1)
       findPlayableTiles()
@@ -284,6 +344,11 @@ function App() {
     <div className={`App ${mode === 'dark' && 'dark'}`}>
       <div className={'headers'}>
         <h3>Turn: {turnCount +1}</h3>
+        {roomName && <h3 onClick={async () => {
+          await navigator.clipboard.writeText(roomName);
+          console.log('copied')
+        }
+        }>{roomName}</h3>}
         <h3 onClick={() => {
           debugMode && console.log(tilesState)
         }}>Player: {playerTurn}</h3>
@@ -299,17 +364,44 @@ function App() {
           isOpen={modalIsOpen}
           onRequestClose={closeModal}
           contentLabel="Example Modal"
+          ariaHideApp={false}
       >
-        <h2>Hello</h2>
-        <button onClick={closeModal}>close</button>
-        <div>I am a modal</div>
-        <form>
-          <input />
-          <button>tab navigation</button>
-          <button>stays</button>
-          <button>inside</button>
-          <button>the modal</button>
-        </form>
+        <h2>Bugz N Fungi</h2>
+        <div>Which Mode</div>
+        <button onClick={() => {
+          closeModal()
+          setGameMode('local')
+        }}>Local Multiplayer</button>
+        <button disabled={!connected} onClick={() => {
+          closeModal()
+          setJoinModalIsOpen(true)
+        }}>Online Multiplayer</button>
+      </Modal>
+      <Modal
+          isOpen={joinModalIsOpen}
+          onRequestClose={closeModal}
+          contentLabel="JOIN OR CREATE ROOM"
+          ariaHideApp={false}
+      >
+        <h2>Join or create room</h2>
+        <input value={roomName} onChange={(val) => {
+          setRoomName(val.currentTarget.value)
+        }} placeholder={'Room Name'}/>
+        <button disabled={roomName.split('-').length < 3} onClick={() => {
+          setJoinModalIsOpen(false)
+          setGameMode('online')
+          joinRoom(roomName)
+        }}>Join Room</button>
+        <button disabled={!connected} onClick={() => {
+          setJoinModalIsOpen(false)
+          setGameMode('online')
+          const roomId = createRoomId()
+          setRoomName(roomId)
+          joinRoom(roomId)
+          /*socket.emit('joinRoom',{
+            room: 'room1'
+          })*/
+        }}>Create Room</button>
       </Modal>
     </div>
   );
