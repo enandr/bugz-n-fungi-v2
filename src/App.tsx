@@ -59,7 +59,7 @@ function App() {
       }
       if (!tile.isPlayable) return;
       handleClick({row:tile.row,column:tile.column})
-      turnCount + 1 < 5 && sendUpdates({turnCount: turnCount + 1})
+      sendUpdates({turnCount: turnCount + 1})
       sendClickedTile({row: tile.row, column: tile.column})
       setTurnCount(turnCount+1)
     }
@@ -208,6 +208,7 @@ function App() {
   }
 
   function findPlayableTiles() {
+    console.log('in playable tiles for ',playerTurn)
     if (!tilesState.length) return;
     resetPlayableTiles()
     const newState = [...tilesState]
@@ -244,7 +245,6 @@ function App() {
   }
 
   function handleClick(tile:{row:number;column:number}) {
-    console.log('in handle click')
     const {row,column} = tile;
     const newState = [...tilesState]
     const currentTile = newState[row][column]
@@ -261,7 +261,6 @@ function App() {
       }
     }
     setTilesState(newState);
-    findPlayableTiles()
   }
 
   useEffect(() => {
@@ -284,54 +283,48 @@ function App() {
   },[])
 
   useEffect(() => {
-    if (socket && gameMode === 'online') {
-      console.log('here')
-    }
-  },[gameMode])
-
-  useEffect(() => {
     if (!loaded) {
       setLoaded(true)
     }
-    console.log('updating')
   },[tilesState])
 
   useEffect(() => {
-    socket.on('connect',() => {
-      setConnected(true)
-      socket.on('playerSet', (data) => {
-        console.log({playerSet:data})
-        setPlayerNumber(data)
+    if (loaded) {
+      console.log('in here')
+      socket.on('connect',() => {
+        setConnected(true)
+        socket.on('playerSet', (data) => {
+          console.log({playerSet:data})
+          setPlayerNumber(data)
+        })
+        socket.on('mouseMove', (data) => {
+          setOtherMouse(data)
+        })
+        socket.on('clickTile', (data) => {
+          console.log({tilesState})
+          if (tilesState.length){
+            handleClick(data)
+          }
+        })
+        socket.on('updates', (data) => {
+          console.log(data)
+          data.turnCount && setTurnCount(data.turnCount)
+          data.playerTurn && setPlayerTurn(data.playerTurn)
+        })
       })
-      socket.on('mouseMove', (data) => {
-        setOtherMouse(data)
-      })
-      socket.on('clickTile', (data) => {
-        console.log({tilesState})
-        if (tilesState.length){
-          handleClick(data)
-        }
-      })
-      socket.on('updates', (data) => {
-        data.turnCount && setTurnCount(data.turnCount)
-        data.playerTurn && setPlayerTurn(data.playerTurn)
-      })
-    })
-  },[loaded])
+      findPlayableTiles()
+    }
+
+  },[loaded,turnCount,playerTurn])
 
   useEffect(() => {
-    console.log(turnCount)
     if (turnCount === 5) {
       sendUpdates({turnCount: 0, playerTurn: playerTurn === 1 ? 2 : 1})
       setTurnCount(0)
       setPlayerTurn(playerTurn === 1 ? 2 : 1)
-      findPlayableTiles()
     }
-  },[turnCount])
-
-  useEffect(() => {
     findPlayableTiles()
-  },[playerTurn])
+  },[turnCount])
 
   useEffect(() => {
     sessionStorage.mode = mode;
@@ -343,7 +336,7 @@ function App() {
     <div className={`App ${mode === 'dark' && 'dark'}`}>
       <div className={'headers'}>
         <h3>Turn: {turnCount +1}</h3>
-        {roomName && <h3 onClick={async () => {
+        {roomName && <h3 className={'roomname'} onClick={async () => {
           await navigator.clipboard.writeText(roomName);
           console.log('copied')
         }
