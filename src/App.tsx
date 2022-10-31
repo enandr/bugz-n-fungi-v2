@@ -4,6 +4,7 @@ import './App.scss';
 import {io} from "socket.io-client"
 import {SocketContext} from "./context/socketContext";
 import useSocket from "./hooks/useSocket";
+import GlobalState, {StateContext, StateType} from "./context/stateContext";
 const redCursor = require('./svgs/cursor-red.png')
 
 
@@ -19,10 +20,11 @@ type TileType = {
 
 function App() {
   const socket = useContext(SocketContext);
-  const [tilesState, setTilesState] = useState<any[]>([])
-  const [playerTurn, setPlayerTurn] = useState<0 | 1 | 2>(0)
+  const {tilesState, setTilesState,playerTurn, setPlayerTurn,turnCount, setTurnCount} = useContext<StateType>(StateContext)
+  //const [tilesState, setTilesState] = useState<any[]>([])
+  //const [playerTurn, setPlayerTurn] = useState<0 | 1 | 2>(0)
   const [playerNumber, setPlayerNumber] = useState<0 | 1 | 2>(0)
-  const [turnCount, setTurnCount] = useState(0)
+  //const [turnCount, setTurnCount] = useState(0)
   const [player1Fungi, setPlayer1Fungi] = useState<TileType[]>([])
   const [player2Fungi, setPlayer2Fungi] = useState<TileType[]>([])
   const [mode, setMode] = useState(sessionStorage.mode || 'light')
@@ -261,7 +263,9 @@ function App() {
           break;
       }
     }
-    setTilesState(newState);
+    if (setTilesState) {
+      setTilesState(newState);
+    }
     findPlayableTiles()
   }
 
@@ -280,8 +284,12 @@ function App() {
     initialState[9][9].owner = 2
     initialState[9][9].type = 'bug'
     setSurroundingTiles(initialState)
-    setTilesState(initialState)
-    setPlayerTurn(1);
+    if (setTilesState) {
+      setTilesState(initialState)
+    }
+    if (setPlayerTurn) {
+      setPlayerTurn(1);
+    }
   },[])
 
   useEffect(() => {
@@ -309,13 +317,17 @@ function App() {
       })
       socket.on('clickTile', (data) => {
         console.log({tilesState})
-        if (tilesState.length){
+        if (tilesState?.length){
           handleClick(data)
         }
       })
       socket.on('updates', (data) => {
-        data.turnCount && setTurnCount(data.turnCount)
-        data.playerTurn && setPlayerTurn(data.playerTurn)
+        if (setTurnCount) {
+          data.turnCount && setTurnCount(data.turnCount)
+        }
+        if (setPlayerTurn) {
+          data.playerTurn && setPlayerTurn(data.playerTurn)
+        }
       })
     })
   },[loaded])
@@ -324,8 +336,12 @@ function App() {
     console.log(turnCount)
     if (turnCount === 5) {
       sendUpdates({turnCount: 0, playerTurn: playerTurn === 1 ? 2 : 1})
-      setTurnCount(0)
-      setPlayerTurn(playerTurn === 1 ? 2 : 1)
+      if (setTurnCount) {
+        setTurnCount(0)
+      }
+      if (setPlayerTurn) {
+        setPlayerTurn(playerTurn === 1 ? 2 : 1)
+      }
       findPlayableTiles()
     }
   },[turnCount])
@@ -341,69 +357,71 @@ function App() {
 
 
   return (
-    <div className={`App ${mode === 'dark' && 'dark'}`}>
-      <div className={'headers'}>
-        <h3>Turn: {turnCount +1}</h3>
-        {roomName && <h3 onClick={async () => {
-          await navigator.clipboard.writeText(roomName);
-          console.log('copied')
-        }
-        }>{roomName}</h3>}
-        <h3 onClick={() => {
-          debugMode && console.log(tilesState)
-        }}>Player: {playerTurn}</h3>
-      </div>
-      <TileGrid />
-      <button onClick={() => {
-        setMode(mode === 'light' ? 'dark' : 'light')
-      }}>Toggle {mode === 'light' ? 'dark' : 'light'} Mode</button>
-      <button onClick={() => {
-        setDebugMode(!debugMode)
-      }}>Debug Mode {debugMode ? 'ON' : 'OFF'}</button>
-      <Modal
-          isOpen={modalIsOpen}
-          onRequestClose={closeModal}
-          contentLabel="Example Modal"
-          ariaHideApp={false}
-      >
-        <h2>Bugz N Fungi</h2>
-        <div>Which Mode</div>
-        <button onClick={() => {
-          closeModal()
-          setGameMode('local')
-        }}>Local Multiplayer</button>
-        <button disabled={!connected} onClick={() => {
-          closeModal()
-          setJoinModalIsOpen(true)
-        }}>Online Multiplayer</button>
-      </Modal>
-      <Modal
-          isOpen={joinModalIsOpen}
-          onRequestClose={closeModal}
-          contentLabel="JOIN OR CREATE ROOM"
-          ariaHideApp={false}
-      >
-        <h2>Join or create room</h2>
-        <input value={roomName} onChange={(val) => {
-          setRoomName(val.currentTarget.value)
-        }} placeholder={'Room Name'}/>
-        <button disabled={roomName.split('-').length < 3} onClick={() => {
-          setJoinModalIsOpen(false)
-          setGameMode('online')
-          joinRoom(roomName)
-        }}>Join Room</button>
-        <button disabled={!connected} onClick={() => {
-          setJoinModalIsOpen(false)
-          setGameMode('online')
-          const roomId = createRoomId()
-          setRoomName(roomId)
-          joinRoom(roomId)
-          /*socket.emit('joinRoom',{
-            room: 'room1'
-          })*/
-        }}>Create Room</button>
-      </Modal>
-    </div>
+      <GlobalState>
+        <div className={`App ${mode === 'dark' && 'dark'}`}>
+          <div className={'headers'}>
+            <h3>Turn: {turnCount ? turnCount + 1: -1}</h3>
+            {roomName && <h3 onClick={async () => {
+              await navigator.clipboard.writeText(roomName);
+              console.log('copied')
+            }
+            }>{roomName}</h3>}
+            <h3 onClick={() => {
+              debugMode && console.log(tilesState)
+            }}>Player: {playerTurn}</h3>
+          </div>
+          <TileGrid />
+          <button onClick={() => {
+            setMode(mode === 'light' ? 'dark' : 'light')
+          }}>Toggle {mode === 'light' ? 'dark' : 'light'} Mode</button>
+          <button onClick={() => {
+            setDebugMode(!debugMode)
+          }}>Debug Mode {debugMode ? 'ON' : 'OFF'}</button>
+          <Modal
+              isOpen={modalIsOpen}
+              onRequestClose={closeModal}
+              contentLabel="Example Modal"
+              ariaHideApp={false}
+          >
+            <h2>Bugz N Fungi</h2>
+            <div>Which Mode</div>
+            <button onClick={() => {
+              closeModal()
+              setGameMode('local')
+            }}>Local Multiplayer</button>
+            <button disabled={!connected} onClick={() => {
+              closeModal()
+              setJoinModalIsOpen(true)
+            }}>Online Multiplayer</button>
+          </Modal>
+          <Modal
+              isOpen={joinModalIsOpen}
+              onRequestClose={closeModal}
+              contentLabel="JOIN OR CREATE ROOM"
+              ariaHideApp={false}
+          >
+            <h2>Join or create room</h2>
+            <input value={roomName} onChange={(val) => {
+              setRoomName(val.currentTarget.value)
+            }} placeholder={'Room Name'}/>
+            <button disabled={roomName.split('-').length < 3} onClick={() => {
+              setJoinModalIsOpen(false)
+              setGameMode('online')
+              joinRoom(roomName)
+            }}>Join Room</button>
+            <button disabled={!connected} onClick={() => {
+              setJoinModalIsOpen(false)
+              setGameMode('online')
+              const roomId = createRoomId()
+              setRoomName(roomId)
+              joinRoom(roomId)
+              /*socket.emit('joinRoom',{
+                room: 'room1'
+              })*/
+            }}>Create Room</button>
+          </Modal>
+        </div>
+      </GlobalState>
   );
 }
 
