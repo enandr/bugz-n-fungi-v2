@@ -1,7 +1,6 @@
 import React, {useContext, useEffect, useRef, useState} from 'react';
 import Modal from 'react-modal';
 import './App.scss';
-import {io} from "socket.io-client"
 import {SocketContext} from "./context/socketContext";
 import useSocket from "./hooks/useSocket";
 const redCursor = require('./svgs/cursor-red.png')
