@@ -91,3 +91,8 @@ button {
   left: 0;
   font-size: 1rem;
 }
+.roomName {
+  &:hover {
+    color: darkgreen;
+  }
+}

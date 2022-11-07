@@ -3,6 +3,8 @@ import Modal from 'react-modal';
 import './App.scss';
 import {SocketContext} from "./context/socketContext";
 import useSocket from "./hooks/useSocket";
+import {Simulate} from "react-dom/test-utils";
+import play = Simulate.play;
 const redCursor = require('./svgs/cursor-red.png')
 
 
@@ -57,10 +59,10 @@ function App() {
         console.log(tile)
         return;
       }
-      if (!tile.isPlayable) return;
-      handleClick({row:tile.row,column:tile.column})
-      turnCount + 1 < 5 && sendUpdates({turnCount: turnCount + 1})
-      sendClickedTile({row: tile.row, column: tile.column})
+      if (!tile.isPlayable || playerTurn !== playerNumber) return;
+      handleClick({row:tile.row,column:tile.column,player:playerTurn})
+      //turnCount + 1 < 5 && sendUpdates({turnCount: turnCount + 1})
+      sendClickedTile({row: tile.row, column: tile.column,player:playerTurn})
       setTurnCount(turnCount+1)
     }
     }>{tile.type === 'bug' ? 'B' : tile.type === 'fungi' ? 'F':''}
@@ -243,12 +245,11 @@ function App() {
     }
   }
 
-  function handleClick(tile:{row:number;column:number}) {
-    console.log('in handle click')
-    const {row,column} = tile;
+  function handleClick(tile:{row:number;column:number,player: 0 | 1 | 2}) {
+    const {row,column,player} = tile;
     const newState = [...tilesState]
     const currentTile = newState[row][column]
-    currentTile.owner = playerTurn
+    currentTile.owner = player
     currentTile.type = currentTile.type === 'none' ? 'bug' : 'fungi';
     if (currentTile.type === 'fungi') {
       switch (currentTile.owner){
@@ -285,7 +286,6 @@ function App() {
 
   useEffect(() => {
     if (socket && gameMode === 'online') {
-      console.log('here')
     }
   },[gameMode])
 
@@ -293,21 +293,18 @@ function App() {
     if (!loaded) {
       setLoaded(true)
     }
-    console.log('updating')
   },[tilesState])
 
   useEffect(() => {
     socket.on('connect',() => {
       setConnected(true)
       socket.on('playerSet', (data) => {
-        console.log({playerSet:data})
         setPlayerNumber(data)
       })
       socket.on('mouseMove', (data) => {
         setOtherMouse(data)
       })
       socket.on('clickTile', (data) => {
-        console.log({tilesState})
         if (tilesState.length){
           handleClick(data)
         }
@@ -317,19 +314,21 @@ function App() {
         data.playerTurn && setPlayerTurn(data.playerTurn)
       })
     })
-  },[loaded])
-
-  useEffect(() => {
-    console.log(turnCount)
-    if (turnCount === 5) {
-      sendUpdates({turnCount: 0, playerTurn: playerTurn === 1 ? 2 : 1})
+    if (turnCount >4) {
+      sendUpdates({turnCount: 0})
       setTurnCount(0)
       setPlayerTurn(playerTurn === 1 ? 2 : 1)
       findPlayableTiles()
+    } else {
+      sendUpdates({turnCount: turnCount})
+      findPlayableTiles()
     }
-  },[turnCount])
+    //findPlayableTiles()
+  },[loaded,turnCount])
 
   useEffect(() => {
+    sendUpdates({ playerTurn:playerTurn})
+    setTurnCount(0)
     findPlayableTiles()
   },[playerTurn])
 
@@ -343,7 +342,7 @@ function App() {
     <div className={`App ${mode === 'dark' && 'dark'}`}>
       <div className={'headers'}>
         <h3>Turn: {turnCount +1}</h3>
-        {roomName && <h3 onClick={async () => {
+        {roomName && <h3 className={"roomName"} onClick={async () => {
           await navigator.clipboard.writeText(roomName);
           console.log('copied')
         }
